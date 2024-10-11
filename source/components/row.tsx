@@ -2,50 +2,29 @@ import React, {useMemo} from 'react';
 import {ColorName} from 'chalk';
 import {Monitor} from '../app.js';
 import {Box, Text} from 'ink';
-import {tableConfig} from '../table-config.js';
 
 type Props = {
 	monitor: Monitor;
+	index: number;
 };
 
-const statusPresenters: Record<
-	number,
-	{
-		text: string;
-		color: ColorName;
-	}
-> = {
-	[0]: {
-		text: 'Paused',
-		color: 'black',
-	},
-	[1]: {
-		text: 'Pending',
-		color: 'gray',
-	},
-	[2]: {
-		text: 'Up',
-		color: 'green',
-	},
-	[8]: {
-		text: 'Seems down',
-		color: 'yellow',
-	},
-	[9]: {
-		text: 'Down',
-		color: 'red',
-	},
+const statusPresenters: Record<number, {text: string; color: ColorName}> = {
+	0: {text: 'Paused', color: 'black'},
+	1: {text: 'Pending', color: 'grey'},
+	2: {text: 'Up', color: 'green'},
+	8: {text: 'Seems down', color: 'yellow'},
+	9: {text: 'Down', color: 'red'},
 };
 
 const monitorTypes: Record<number, string> = {
-	[1]: 'HTTP',
-	[2]: 'Keyword',
-	[3]: 'Ping',
-	[4]: 'Port',
-	[5]: 'Heartbeat',
+	1: 'HTTP',
+	2: 'Keyword',
+	3: 'Ping',
+	4: 'Port',
+	5: 'Heartbeat',
 };
 
-const formatDuration = (duration: number) => {
+const formatDuration = (duration: number): string => {
 	const secondsInMinute = 60;
 	const secondsInHour = 60 * secondsInMinute;
 	const secondsInDay = 24 * secondsInHour;
@@ -63,11 +42,11 @@ const formatDuration = (duration: number) => {
 		years > 0 ? `${years}y` : '',
 		months > 0 ? `${months}mo` : '',
 		days > 0 ? `${days}d` : '',
-		// Show hours only if there are no months
+
 		months === 0 && hours > 0 ? `${hours}h` : '',
-		// Show minutes only if there are no days
+
 		days === 0 && months === 0 && minutes > 0 ? `${minutes}m` : '',
-		// Show seconds only if there are no hours
+
 		hours === 0 && days === 0 && months === 0 && (seconds > 0 || duration === 0)
 			? `${seconds}s`
 			: '',
@@ -78,7 +57,49 @@ const formatDuration = (duration: number) => {
 	return formatted;
 };
 
-export default function Row({monitor}: Props) {
+const formatDate = (timestamp: number): string =>
+	new Intl.DateTimeFormat('en-US', {
+		month: 'short',
+		day: 'numeric',
+		year: 'numeric',
+	}).format(new Date(timestamp * 1000));
+
+type LabelValueProps = {
+	label: string;
+	value: string;
+	valueColor?: ColorName;
+};
+
+const LabelValue: React.FC<LabelValueProps> = ({label, value, valueColor}) => (
+	<Box flexDirection="row" justifyContent="space-between">
+		<Text color="grey">{label}</Text>
+		<Text color={valueColor}>{value}</Text>
+	</Box>
+);
+
+type StatusBoxProps = {
+	text: string;
+	color: ColorName;
+};
+
+const StatusBox: React.FC<StatusBoxProps> = ({text, color}) => (
+	<Box
+		alignItems="center"
+		borderColor={color}
+		borderBottom
+		borderStyle="single"
+		justifyContent="center"
+		width={16}
+	>
+		<Text color={color} wrap="truncate">
+			{'\u00A0'}
+			{text}
+			{'\u00A0'}
+		</Text>
+	</Box>
+);
+
+export default function Row({monitor, index}: Props) {
 	const {text: statusText, color: statusColor} = statusPresenters[
 		monitor.status
 	] || {
@@ -92,106 +113,92 @@ export default function Row({monitor}: Props) {
 
 	const mostRecentOutage = monitor.logs
 		.filter(log => log.type === 1)
-		.sort((_a, _b) => {
-			return 0;
-		})[0];
+		.sort((a, b) => b.datetime - a.datetime)[0];
 
-	const formattedOutageDate =
-		mostRecentOutage &&
-		new Intl.DateTimeFormat('en-US', {
-			month: 'short',
-			day: 'numeric',
-			year: 'numeric',
-		}).format(new Date(mostRecentOutage.datetime * 1000));
+	const formattedOutageDate = mostRecentOutage
+		? formatDate(mostRecentOutage.datetime)
+		: '-';
 
-	const formattedOutageDuration = useMemo(() => {
-		if (!mostRecentOutage) {
-			return '';
-		}
-
-		return formatDuration(mostRecentOutage.duration);
-	}, [mostRecentOutage]);
+	const formattedOutageDuration = useMemo(
+		() => (mostRecentOutage ? formatDuration(mostRecentOutage.duration) : ''),
+		[mostRecentOutage],
+	);
 
 	const mostRecentUptime = monitor.logs
 		.filter(log => log.type === 2)
-		.sort((_a, _b) => {
-			return 0;
-		})[0];
+		.sort((a, b) => b.datetime - a.datetime)[0];
 
-	const durationUp = mostRecentUptime
-		? new Date().getTime() / 1000 - mostRecentUptime.datetime
-		: undefined;
+	const durationUp =
+		mostRecentUptime && monitor.status === 2
+			? Date.now() / 1000 - mostRecentUptime.datetime
+			: undefined;
 
-	const formattedUptimeDuration = durationUp && formatDuration(durationUp);
+	const formattedUptimeDuration = durationUp ? formatDuration(durationUp) : '-';
+
+	const uptimeRatio = monitor.custom_uptime_ratio
+		? monitor.custom_uptime_ratio.replace(/^100\.000$/, '100') + '%'
+		: '-';
+
+	const averageResponseTime = monitor.average_response_time
+		? monitor.average_response_time.replace(/\.[0-9]+$/, '') + 'ms'
+		: '-';
 
 	return (
 		<Box
 			key={monitor.id}
-			display="flex"
-			gap={tableConfig.colGap}
+			flexDirection="row"
+			gap={3}
 			alignItems="flex-start"
+			justifyContent="flex-start"
+			borderTop={index !== 0}
+			borderBottom={false}
+			borderLeft={false}
+			borderRight={false}
+			borderStyle="single"
+			borderColor="grey"
+			alignSelf="flex-start"
 		>
-			<Box
-				width={`${tableConfig.colPercentWidths[0]}%`}
-				display="flex"
-				alignItems="center"
-				borderColor={statusColor}
-				borderBottom
-				borderStyle="single"
-				justifyContent="center"
-			>
-				<Text color={statusColor}>
-					{`\u{A0}`}
-					{statusText}
-					{`\u{A0}`}
-				</Text>
-			</Box>
-			<Box
-				width={`${tableConfig.colPercentWidths[1]}%`}
-				display="flex"
-				flexDirection="column"
-			>
+			<StatusBox text={statusText} color={statusColor} />
+
+			<Box flexDirection="column" width={24}>
 				<Text wrap="truncate">{monitor.friendly_name}</Text>
 				<Text wrap="truncate-middle" color="cyan">
 					{shortUrl}
 				</Text>
-				<Text color="grey">
+				<Text color="grey" wrap="truncate">
 					{monitorTypes[monitor.type]} every {formatDuration(monitor.interval)}
 				</Text>
 			</Box>
-			<Box
-				width={`${tableConfig.colPercentWidths[2]}%`}
-				display="flex"
-				flexDirection="column"
-			>
-				<Box display="flex" justifyContent="space-between">
-					<Text color="grey">Up for: </Text>
-					<Text wrap="truncate">{formattedUptimeDuration}</Text>
-				</Box>
-				<Box display="flex" justifyContent="space-between">
-					<Text color="grey">Uptime (1mo): </Text>
-					<Text>
-						{monitor.custom_uptime_ratio.replace(/^100\.000$/, '100')}%
-					</Text>
-				</Box>
-				<Box display="flex" justifyContent="space-between">
-					<Text color="grey">Avg speed (1d): </Text>
-					<Text>
-						{monitor.average_response_time.replace(/\.[0-9]+$/, '')}ms
-					</Text>
-				</Box>
+
+			<Box flexDirection="column" width={24}>
+				<LabelValue
+					label="Up for: "
+					value={formattedUptimeDuration}
+					valueColor={durationUp ? undefined : 'grey'}
+				/>
+				<LabelValue
+					label="Uptime (1mo): "
+					value={uptimeRatio}
+					valueColor={monitor.custom_uptime_ratio ? undefined : 'grey'}
+				/>
+				<LabelValue
+					label="Avg speed (1d): "
+					value={averageResponseTime}
+					valueColor={monitor.average_response_time ? undefined : 'grey'}
+				/>
 			</Box>
-			<Box
-				width={`${tableConfig.colPercentWidths[3]}%`}
-				display="flex"
-				flexDirection="column"
-				alignItems="flex-end"
-			>
-				<Text color="grey">Last outage:</Text>
-				<Text color={formattedOutageDate ? undefined : 'grey'}>
-					{formattedOutageDate || '-'}
+
+			<Box flexDirection="column" alignItems="flex-end" width={12}>
+				<Text color="grey" wrap="truncate">
+					Last outage:
 				</Text>
-				<Text>{formattedOutageDuration}</Text>
+				<Text
+					color={formattedOutageDate !== '-' ? undefined : 'grey'}
+					wrap="truncate"
+				>
+					{formattedOutageDate}
+				</Text>
+				<Text wrap="truncate">{formattedOutageDuration}</Text>
 			</Box>
 		</Box>
 	);
