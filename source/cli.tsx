@@ -18,6 +18,10 @@ async function main() {
 
     Examples
       $ uptime-checker --token=xxxxxx
+
+      ┌──────────────┐   Personal website         Up for:              17d     Last outage:
+      │      Up      │   rosshill.ca              Uptime (1mo):    99.989%     Sep 24, 2024
+      └──────────────┘   HTTP every 5m            Avg speed (1d):    144ms           1m 55s
     `,
 		{
 			importMeta: import.meta,

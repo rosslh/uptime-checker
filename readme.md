@@ -4,7 +4,12 @@ This is a command line program to check the status of your [UptimeRobot](https:/
 
 It returns information on the website status, UptimeRobot configuration, duration up, uptime ratio, average response time, time since last outage, and duration of last outage.
 
-It's built using React using the [Ink](https://github.com/vadimdemedes/ink) renderer.
+It's built with React using the [Ink](https://github.com/vadimdemedes/ink) renderer.
+
+## Example image
+
+![alt text](example-image.png)
+_Warp terminal, Ayu Mirage theme, Cousine font_
 
 ## Install
 
