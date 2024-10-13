@@ -8,7 +8,7 @@ It's built with React using the [Ink](https://github.com/vadimdemedes/ink) rende
 
 ## Example image
 
-![alt text](example-image.png)
+![Example screenshot](https://github.com/rosslh/uptime-checker/raw/main/example-image.png)
 _Warp terminal, Ayu Mirage theme, Cousine font_
 
 ## Install
