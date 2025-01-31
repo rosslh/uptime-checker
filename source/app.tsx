@@ -140,6 +140,13 @@ const useMonitors = (token: string) => {
 	return {data, error, usingCache};
 };
 
+const getLastOutageDate = (monitor: Monitor): number => {
+	const lastOutage = monitor.logs
+		.filter(log => log.type === 1)
+		.sort((a, b) => b.datetime - a.datetime)[0];
+	return lastOutage ? lastOutage.datetime : 0;
+};
+
 const App = ({token}: Props) => {
 	const {data, error, usingCache} = useMonitors(token);
 
@@ -151,9 +158,13 @@ const App = ({token}: Props) => {
 		return <Text>Loading...</Text>;
 	}
 
+	const sortedMonitors = data.monitors.sort(
+		(a, b) => getLastOutageDate(b) - getLastOutageDate(a),
+	);
+
 	return (
 		<Box flexDirection="column" paddingTop={1} paddingBottom={1}>
-			{data.monitors.map((monitor, index) => (
+			{sortedMonitors.map((monitor, index) => (
 				<Row key={monitor.id} monitor={monitor} index={index} />
 			))}
 			{usingCache && (
